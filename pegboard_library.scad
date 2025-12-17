@@ -13,7 +13,7 @@
 //   "none"             - No pegs (backing plate only)
 //
 // IMPORTANT: Multi-tile backings share pegs at boundaries!
-//   1x1 = 31.75mm, 2x1 = 58mm (NOT 63.5mm), 3x1 = 84.25mm (NOT 95.25mm)
+//   1x1 = 31.75mm, 2x1 = 57.15mm, 3x1 = 82.55mm
 //
 // See README.md for full documentation
 // ============================================================================
@@ -23,9 +23,9 @@ TILE_SIZE = 31.75;          // Single tile dimension (mm)
 PEG_DIAMETER = 5.5;         // Peg diameter (mm)
 BACKING_THICKNESS = 4;      // Backing plate thickness (mm)
 
-// === Derived Spacing (CRITICAL for multi-tile backings) ===
-// Adjacent tiles SHARE a peg hole, so spacing between pegs is TILE_SIZE - PEG_DIAMETER
-PEG_SPACING = TILE_SIZE - PEG_DIAMETER;  // 26.25mm - actual distance between holes
+// === Peg Spacing (CRITICAL for multi-tile backings) ===
+// Standard pegboard hole spacing is exactly 1 inch (25.4mm) center-to-center
+PEG_SPACING = 25.4;  // 1 inch - actual pegboard hole spacing
 
 // === Peg Parameters ===
 FRONT_PEG_HEIGHT = 4;       // Plain cylinders (front/top edge)
@@ -141,54 +141,62 @@ module tapered_peg_and_hook(peg_height = BACK_PEG_HEIGHT) {
 
 // Places pegs at all four corners of the tiled assembly
 // Front corners get plain pegs, back corners get hooks
+// Uses peg_x/peg_y to ensure alignment with actual pegboard holes
 module place_pegs_corners(cols, rows) {
-    w = backing_width(cols);
-    h = backing_height(rows);
+    // Corner positions using actual pegboard hole spacing
+    x_left = peg_x(0, cols);
+    x_right = peg_x(cols, cols);
+    y_front = peg_y(0, rows);
+    y_back = peg_y(rows, rows);
 
     // Front corners (plain pegs)
-    translate([EDGE_OFFSET, EDGE_OFFSET, BACKING_THICKNESS])
+    translate([x_left, y_front, BACKING_THICKNESS])
         plain_peg();
-    translate([w - EDGE_OFFSET, EDGE_OFFSET, BACKING_THICKNESS])
+    translate([x_right, y_front, BACKING_THICKNESS])
         plain_peg();
 
     // Back corners (hook pegs)
-    translate([EDGE_OFFSET, h - EDGE_OFFSET, BACKING_THICKNESS])
+    translate([x_left, y_back, BACKING_THICKNESS])
         tapered_peg_and_hook();
-    translate([w - EDGE_OFFSET, h - EDGE_OFFSET, BACKING_THICKNESS])
+    translate([x_right, y_back, BACKING_THICKNESS])
         tapered_peg_and_hook();
 }
 
 // Places pegs around the perimeter at each peg position
 // Front edge: plain pegs, Back edge: hook pegs
+// Uses peg_x/peg_y to ensure alignment with actual pegboard holes
 module place_pegs_perimeter(cols, rows) {
-    w = backing_width(cols);
-    h = backing_height(rows);
+    // Edge positions using actual pegboard hole spacing
+    x_left = peg_x(0, cols);
+    x_right = peg_x(cols, cols);
+    y_front = peg_y(0, rows);
+    y_back = peg_y(rows, rows);
 
     // Front edge (plain pegs at each position)
     for (i = [0 : cols]) {
         x = peg_x(i, cols);
-        translate([x, EDGE_OFFSET, BACKING_THICKNESS])
+        translate([x, y_front, BACKING_THICKNESS])
             plain_peg();
     }
 
     // Back edge (hook pegs at each position)
     for (i = [0 : cols]) {
         x = peg_x(i, cols);
-        translate([x, h - EDGE_OFFSET, BACKING_THICKNESS])
+        translate([x, y_back, BACKING_THICKNESS])
             tapered_peg_and_hook();
     }
 
     // Left edge (intermediate rows only)
     for (j = [1 : rows - 1]) {
         y = peg_y(j, rows);
-        translate([EDGE_OFFSET, y, BACKING_THICKNESS])
+        translate([x_left, y, BACKING_THICKNESS])
             plain_peg();
     }
 
     // Right edge (intermediate rows only)
     for (j = [1 : rows - 1]) {
         y = peg_y(j, rows);
-        translate([w - EDGE_OFFSET, y, BACKING_THICKNESS])
+        translate([x_right, y, BACKING_THICKNESS])
             plain_peg();
     }
 }
@@ -236,6 +244,106 @@ module place_pegs_grid_corner_hooks(cols, rows) {
 }
 
 // ============================================================================
+// LITE BACKING PLATES (with lightening holes for faster printing)
+// ============================================================================
+
+// Frame width for lite backings - must cover peg bases
+LITE_FRAME_WIDTH = 6;  // 6mm frame around edges
+LITE_CUTOUT_RADIUS = 2;  // Corner radius on cutouts
+
+// Creates a backing plate with center cutout for faster printing
+// For corner-only patterns, use a single large cutout
+module tiled_backing_plate_lite(cols, rows) {
+    w = backing_width(cols);
+    h = backing_height(rows);
+    z = BACKING_THICKNESS;
+    frame = LITE_FRAME_WIDTH;
+    cr = LITE_CUTOUT_RADIUS;
+
+    // Cutout dimensions
+    cut_w = w - 2 * frame;
+    cut_h = h - 2 * frame;
+
+    // Only add cutout if there's room (backing must be large enough)
+    if (cut_w > 2 * cr && cut_h > 2 * cr) {
+        difference() {
+            tiled_backing_plate(cols, rows);
+
+            // Center cutout with rounded corners
+            translate([frame, frame, -0.1])
+                hull() {
+                    translate([cr, cr, 0])
+                        cylinder(h = z + 0.2, r = cr);
+                    translate([cut_w - cr, cr, 0])
+                        cylinder(h = z + 0.2, r = cr);
+                    translate([cr, cut_h - cr, 0])
+                        cylinder(h = z + 0.2, r = cr);
+                    translate([cut_w - cr, cut_h - cr, 0])
+                        cylinder(h = z + 0.2, r = cr);
+                }
+        }
+    } else {
+        // Too small for cutout, use solid plate
+        tiled_backing_plate(cols, rows);
+    }
+}
+
+// Peg base radius - enough to support peg plus some margin
+PEG_BASE_RADIUS = PEG_DIAMETER / 2 + 2;  // 4.75mm radius
+
+// Creates a backing plate with cutout BUT preserves material under all peg positions
+// Use this for grid patterns where interior pegs exist
+module tiled_backing_plate_lite_with_peg_bases(cols, rows) {
+    w = backing_width(cols);
+    h = backing_height(rows);
+    z = BACKING_THICKNESS;
+    frame = LITE_FRAME_WIDTH;
+    cr = LITE_CUTOUT_RADIUS;
+
+    // Cutout dimensions
+    cut_w = w - 2 * frame;
+    cut_h = h - 2 * frame;
+
+    // Only add cutout if there's room
+    if (cut_w > 2 * cr && cut_h > 2 * cr) {
+        union() {
+            difference() {
+                tiled_backing_plate(cols, rows);
+
+                // Center cutout with rounded corners
+                translate([frame, frame, -0.1])
+                    hull() {
+                        translate([cr, cr, 0])
+                            cylinder(h = z + 0.2, r = cr);
+                        translate([cut_w - cr, cr, 0])
+                            cylinder(h = z + 0.2, r = cr);
+                        translate([cr, cut_h - cr, 0])
+                            cylinder(h = z + 0.2, r = cr);
+                        translate([cut_w - cr, cut_h - cr, 0])
+                            cylinder(h = z + 0.2, r = cr);
+                    }
+            }
+
+            // Add peg bases at all interior peg positions
+            for (i = [0 : cols]) {
+                for (j = [0 : rows]) {
+                    x = peg_x(i, cols);
+                    y = peg_y(j, rows);
+                    // Check if this peg is in the cutout area (not on the frame)
+                    if (x > frame && x < w - frame && y > frame && y < h - frame) {
+                        translate([x, y, 0])
+                            cylinder(h = z, r = PEG_BASE_RADIUS);
+                    }
+                }
+            }
+        }
+    } else {
+        // Too small for cutout, use solid plate
+        tiled_backing_plate(cols, rows);
+    }
+}
+
+// ============================================================================
 // COMPLETE BACKING ASSEMBLIES
 // ============================================================================
 
@@ -254,6 +362,25 @@ module pegboard_backing(cols = 1, rows = 1, peg_pattern = "corners") {
         place_pegs_grid(cols, rows);
     } else if (peg_pattern == "grid_corner_hooks") {
         place_pegs_grid_corner_hooks(cols, rows);
+    }
+    // "none" adds no pegs
+}
+
+// Creates a lightweight pegboard backing with center cutout for faster printing
+// For lite versions, pegs are only placed on the outer frame (no interior pegs)
+// peg_pattern: "corners", "perimeter", "grid", "grid_corner_hooks", or "none"
+// Note: "grid" and "grid_corner_hooks" become "perimeter" for lite (no interior material)
+module pegboard_backing_lite(cols = 1, rows = 1, peg_pattern = "corners") {
+    // Always use simple cutout - no interior pegs for lite versions
+    tiled_backing_plate_lite(cols, rows);
+
+    // Add pegs based on pattern
+    // For lite versions, grid patterns become perimeter (only pegs where frame exists)
+    if (peg_pattern == "corners") {
+        place_pegs_corners(cols, rows);
+    } else if (peg_pattern == "perimeter" || peg_pattern == "grid" || peg_pattern == "grid_corner_hooks") {
+        // All grid-like patterns become perimeter for lite - only edge pegs
+        place_pegs_perimeter(cols, rows);
     }
     // "none" adds no pegs
 }

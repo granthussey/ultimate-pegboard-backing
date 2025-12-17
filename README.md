@@ -26,16 +26,35 @@ Modular pegboard backings with smart beveling and configurable peg placement pat
 | `_grid` | All pegs, corner hooks | Medium items |
 | `_maxhook` | All pegs, all back hooks | Heavy items |
 | `_support` | Corners + middle hook | Medium-light items |
+| `_lite` | Corner pegs, center cutout | Light items, fast printing |
+| `_grid_lite` | Grid + center cutout | Medium items, fast printing |
+| `_maxhook_lite` | Maxhook + center cutout | Heavy items, fast printing |
+| `_support_lite` | Support + center cutout | Medium-light items, fast printing |
+
+### Lite Variants
+The `_lite` variants have a rectangular cutout in the center, reducing material by ~40-50% and printing ~40-50% faster. A 6mm frame around the edges preserves structural integrity at the peg locations.
+
+**Important:** For lite variants, pegs are only placed on the outer frame where material exists. Grid and maxhook patterns become perimeter patterns (no interior pegs since there's no backing material to support them).
+
+Available lite versions:
+- `backing_*_lite.stl` - Corner pegs only, lightweight
+- `backing_*_grid_lite.stl` - Perimeter pegs, corner hooks, lightweight
+- `backing_*_maxhook_lite.stl` - Perimeter pegs, all back hooks, lightweight
+- `backing_*_support_lite.stl` - Corner pegs + middle hook, lightweight (3x1, 3x2 only)
+
+### Grid vs Maxhook Equivalence
+
+For **1-column backings** (1x2, 1x3), the `_grid` and `_maxhook` variants are **identical**. This is because the back row only has 2 peg positions (both corners), so "all back hooks" and "corner hooks" produce the same result. Use `_grid` for these sizes.
 
 ## Dimensions
 
 | Grid | Size (mm) | Size (inches) |
 |------|-----------|---------------|
 | 1x1 | 31.75 x 31.75 | 1.25" x 1.25" |
-| 2x1 | 58 x 31.75 | 2.28" x 1.25" |
-| 3x1 | 84.25 x 31.75 | 3.32" x 1.25" |
-| 2x2 | 58 x 58 | 2.28" x 2.28" |
-| 3x2 | 84.25 x 58 | 3.32" x 2.28" |
+| 2x1 | 57.15 x 31.75 | 2.25" x 1.25" |
+| 3x1 | 82.55 x 31.75 | 3.25" x 1.25" |
+| 2x2 | 57.15 x 57.15 | 2.25" x 2.25" |
+| 3x2 | 82.55 x 57.15 | 3.25" x 2.25" |
 
 ## Customization
 
@@ -53,6 +72,11 @@ pegboard_backing(cols, rows, "corners");           // Standard
 pegboard_backing(cols, rows, "grid");              // Maxhook (all hooks)
 pegboard_backing(cols, rows, "grid_corner_hooks"); // Grid (corner hooks)
 pegboard_backing(cols, rows, "perimeter");         // Edge pegs
+
+// Or use lite variants for faster printing:
+pegboard_backing_lite(cols, rows, "corners");           // Standard lite
+pegboard_backing_lite(cols, rows, "grid");              // Maxhook lite
+pegboard_backing_lite(cols, rows, "grid_corner_hooks"); // Grid lite
 ```
 
 ### Adding Custom Geometry
@@ -91,18 +115,19 @@ peg_y(j, rows)         // Y position for peg at row j
 |-----------|-------|-------------|
 | `TILE_SIZE` | 31.75mm (1.25") | Single tile dimension |
 | `PEG_DIAMETER` | 5.5mm | Peg diameter |
-| `PEG_SPACING` | 26.25mm | Distance between pegs |
+| `PEG_SPACING` | 25.4mm (1") | Pegboard hole spacing |
 | `BACKING_THICKNESS` | 4mm | Backing plate thickness |
 
-### Why PEG_SPACING != TILE_SIZE
+### Why PEG_SPACING = 25.4mm
 
-Adjacent tiles **share** a peg hole where they meet. The actual spacing between peg centers is:
+Standard pegboards have holes spaced exactly **1 inch (25.4mm)** apart, center-to-center. Multi-tile backings use this spacing:
 
 ```
-PEG_SPACING = TILE_SIZE - PEG_DIAMETER = 31.75 - 5.5 = 26.25mm
+width = TILE_SIZE + (cols - 1) × PEG_SPACING
+      = 31.75 + (cols - 1) × 25.4
 ```
 
-This is why a 2x1 backing is 58mm wide, not 63.5mm.
+This is why a 2x1 backing is 57.15mm wide, not 63.5mm.
 
 ## File Organization
 
