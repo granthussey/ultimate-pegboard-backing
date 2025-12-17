@@ -141,13 +141,18 @@ module tapered_peg_and_hook(peg_height = BACK_PEG_HEIGHT) {
 
 // Places pegs at all four corners of the tiled assembly
 // Front corners get plain pegs, back corners get hooks
-// Uses peg_x/peg_y to ensure alignment with actual pegboard holes
+// Uses interference-fit spacing (EDGE_OFFSET from plate edges) for secure grip
 module place_pegs_corners(cols, rows) {
-    // Corner positions using actual pegboard hole spacing
-    x_left = peg_x(0, cols);
-    x_right = peg_x(cols, cols);
-    y_front = peg_y(0, rows);
-    y_back = peg_y(rows, rows);
+    w = backing_width(cols);
+    h = backing_height(rows);
+
+    // Corner positions using interference-fit spacing
+    // Pegs at EDGE_OFFSET from plate edges creates ~0.85mm spread vs exact hole spacing
+    // This spread creates outward pressure that grips the pegboard holes
+    x_left = EDGE_OFFSET;
+    x_right = w - EDGE_OFFSET;
+    y_front = EDGE_OFFSET;
+    y_back = h - EDGE_OFFSET;
 
     // Front corners (plain pegs)
     translate([x_left, y_front, BACKING_THICKNESS])
@@ -164,24 +169,29 @@ module place_pegs_corners(cols, rows) {
 
 // Places pegs around the perimeter at each peg position
 // Front edge: plain pegs, Back edge: hook pegs
-// Uses peg_x/peg_y to ensure alignment with actual pegboard holes
+// Uses interference-fit spacing at outer edges for secure grip
 module place_pegs_perimeter(cols, rows) {
-    // Edge positions using actual pegboard hole spacing
-    x_left = peg_x(0, cols);
-    x_right = peg_x(cols, cols);
-    y_front = peg_y(0, rows);
-    y_back = peg_y(rows, rows);
+    w = backing_width(cols);
+    h = backing_height(rows);
 
-    // Front edge (plain pegs at each position)
+    // Outer edge positions using interference-fit spacing
+    x_left = EDGE_OFFSET;
+    x_right = w - EDGE_OFFSET;
+    y_front = EDGE_OFFSET;
+    y_back = h - EDGE_OFFSET;
+
+    // Front edge (plain pegs)
+    // Corner pegs at interference-fit positions, intermediate at peg_x()
     for (i = [0 : cols]) {
-        x = peg_x(i, cols);
+        x = (i == 0) ? x_left : (i == cols) ? x_right : peg_x(i, cols);
         translate([x, y_front, BACKING_THICKNESS])
             plain_peg();
     }
 
-    // Back edge (hook pegs at each position)
+    // Back edge (hook pegs)
+    // Corner pegs at interference-fit positions, intermediate at peg_x()
     for (i = [0 : cols]) {
-        x = peg_x(i, cols);
+        x = (i == 0) ? x_left : (i == cols) ? x_right : peg_x(i, cols);
         translate([x, y_back, BACKING_THICKNESS])
             tapered_peg_and_hook();
     }
@@ -203,11 +213,22 @@ module place_pegs_perimeter(cols, rows) {
 
 // Places pegs in a grid pattern at each position
 // Back row gets hooks, all others get plain pegs
+// Uses interference-fit spacing at outer edges for secure grip
 module place_pegs_grid(cols, rows) {
+    w = backing_width(cols);
+    h = backing_height(rows);
+
+    // Outer edge positions using interference-fit spacing
+    x_left = EDGE_OFFSET;
+    x_right = w - EDGE_OFFSET;
+    y_front = EDGE_OFFSET;
+    y_back = h - EDGE_OFFSET;
+
     for (i = [0 : cols]) {
         for (j = [0 : rows]) {
-            x = peg_x(i, cols);
-            y = peg_y(j, rows);
+            // Edge pegs at interference-fit positions, interior at peg_x()/peg_y()
+            x = (i == 0) ? x_left : (i == cols) ? x_right : peg_x(i, cols);
+            y = (j == 0) ? y_front : (j == rows) ? y_back : peg_y(j, rows);
 
             // Back row gets hooks, others get plain
             translate([x, y, BACKING_THICKNESS]) {
@@ -223,11 +244,22 @@ module place_pegs_grid(cols, rows) {
 
 // Places pegs in a grid pattern with hooks ONLY at the 4 corners
 // Back corners get hooks, all other positions get plain pegs
+// Uses interference-fit spacing at outer edges for secure grip
 module place_pegs_grid_corner_hooks(cols, rows) {
+    w = backing_width(cols);
+    h = backing_height(rows);
+
+    // Outer edge positions using interference-fit spacing
+    x_left = EDGE_OFFSET;
+    x_right = w - EDGE_OFFSET;
+    y_front = EDGE_OFFSET;
+    y_back = h - EDGE_OFFSET;
+
     for (i = [0 : cols]) {
         for (j = [0 : rows]) {
-            x = peg_x(i, cols);
-            y = peg_y(j, rows);
+            // Edge pegs at interference-fit positions, interior at peg_x()/peg_y()
+            x = (i == 0) ? x_left : (i == cols) ? x_right : peg_x(i, cols);
+            y = (j == 0) ? y_front : (j == rows) ? y_back : peg_y(j, rows);
 
             // Only back row corners (j==rows AND (i==0 OR i==cols)) get hooks
             is_back_corner = (j == rows) && (i == 0 || i == cols);

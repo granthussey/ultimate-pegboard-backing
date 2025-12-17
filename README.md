@@ -129,6 +129,23 @@ width = TILE_SIZE + (cols - 1) × PEG_SPACING
 
 This is why a 2x1 backing is 57.15mm wide, not 63.5mm.
 
+### Interference-Fit Peg Spacing
+
+The pegs are intentionally placed at `EDGE_OFFSET` (2.75mm) from the plate edges, **not** at the exact pegboard hole spacing. This creates a critical **interference fit**:
+
+| Backing | Peg Spacing | Hole Spacing | Difference |
+|---------|-------------|--------------|------------|
+| 1x1 | 26.25mm | 25.4mm | +0.85mm |
+
+**Why this matters:** The 0.85mm spread creates outward pressure when the pegs are inserted into the pegboard holes. This pressure makes the backing grip the holes securely instead of falling out.
+
+If pegs were placed at exactly 25.4mm spacing, they would drop straight into the holes with no grip - the backing would be "too loose" and fall out easily.
+
+**Technical details:**
+- Corner pegs: Always at `EDGE_OFFSET` from plate edges (interference fit)
+- Edge pegs (perimeter/grid): Corners use interference fit, intermediate positions use `peg_x()`/`peg_y()` for proper alignment
+- Interior pegs (grid patterns): Use exact `peg_x()`/`peg_y()` spacing
+
 ## File Organization
 
 ```
